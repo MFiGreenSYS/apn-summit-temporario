@@ -1,0 +1,192 @@
+/* ==========================================================================
+   Modo Apresentação — UI (desktop only)
+   Aditivo: nada aqui altera o layout/animações existentes. Toda a UI é
+   injetada por js/presentation-mode.js. Abaixo de 1024px fica tudo oculto
+   (rede de segurança; o JS também tem gate desktop).
+   Tokens herdados de :root no index.html (--green, --ink, --ink-dim, --line, --bg).
+   ========================================================================== */
+
+/* ---- grupo: toggle + "Fale conosco" juntinhos, alinhados ---- */
+.pmode-cta-group{ display:flex; align-items:center; gap:12px; }
+
+/* ---- botão que ATIVA o modo (redondo, mesma altura do CTA, ANTES dele) ---- */
+.pmode-toggle{
+  display:flex; align-items:center; justify-content:center;
+  width:41px; height:41px; padding:0; flex:none;
+  border:1px solid var(--line); border-radius:50%;
+  background:rgba(255,255,255,.04); color:var(--ink);
+  cursor:pointer;
+  transition:background .2s, transform .2s, border-color .2s, box-shadow .2s;
+}
+.pmode-toggle:hover{
+  background:rgba(24,255,0,.10); border-color:rgba(24,255,0,.4);
+  transform:translateY(-1px); box-shadow:0 0 22px rgba(24,255,0,.25);
+}
+.pmode-toggle svg{ display:block; width:21px; height:21px; }
+.pmode-toggle .pm-frame{ stroke:currentColor; }
+.pmode-toggle .pm-play{ fill:var(--green); }
+
+/* ---- estado ATIVO: some o menu, fica só a logo ---- */
+html.pmode-active .nav-links,
+html.pmode-active .nav-cta,
+html.pmode-active #navToggle,
+html.pmode-active .pmode-toggle{
+  opacity:0 !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+  transition:opacity .3s ease, visibility .3s ease;
+}
+/* a navbar continua no topo, só com a logo */
+html.pmode-active .nav{ background:linear-gradient(180deg,rgba(3,6,3,.9),rgba(3,6,3,0)); }
+
+/* ==========================================================================
+   Rail vertical à esquerda (fora do #smooth-content)
+   ========================================================================== */
+.pmode-rail{
+  position:fixed; left:24px; top:50%; transform:translateY(-50%) translateX(-14px);
+  z-index:900;
+  display:flex; flex-direction:column; align-items:center; gap:14px;
+  padding:16px 12px;
+  border:1px solid var(--line); border-radius:999px;
+  background:rgba(3,6,3,.72);
+  -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+  box-shadow:0 12px 44px rgba(0,0,0,.5);
+  opacity:0; pointer-events:none;
+  transition:opacity .35s ease, transform .45s cubic-bezier(.16,1.1,.3,1);
+}
+html.pmode-active .pmode-rail{
+  opacity:1; pointer-events:auto; transform:translateY(-50%) translateX(0);
+}
+
+/* botões de controle (sair, setas, play) — mesma linguagem visual */
+.pmode-ctrl{
+  display:flex; align-items:center; justify-content:center;
+  width:34px; height:34px; padding:0; flex:none;
+  border:1px solid var(--line); border-radius:50%;
+  background:rgba(255,255,255,.03); color:var(--ink-dim);
+  cursor:pointer;
+  transition:color .2s, background .2s, border-color .2s, transform .2s, opacity .2s;
+}
+.pmode-ctrl:hover{ color:var(--ink); background:rgba(24,255,0,.10); border-color:rgba(24,255,0,.35); }
+.pmode-ctrl:active{ transform:scale(.92); }
+.pmode-ctrl:disabled{ opacity:.3; cursor:default; }
+.pmode-ctrl svg{ display:block; width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.pmode-exit svg{ width:15px; height:15px; }
+.pmode-play .pm-pauseicon{ display:none; }
+.pmode-play.is-playing .pm-playicon{ display:none; }
+.pmode-play.is-playing .pm-pauseicon{ display:block; }
+.pmode-play.is-playing{ color:var(--green); border-color:rgba(24,255,0,.45); }
+
+/* tela cheia: um botão, dois ícones — "entrar" e "sair" — trocados pela classe
+   .pmode-fs no <html> (quem escreve é o listener de fullscreenchange, então o estado
+   segue certo mesmo quando quem tira a tela cheia é o navegador, no Esc). */
+.pmode-full span{ display:flex; }
+.pmode-full .pm-fsout{ display:none; }
+html.pmode-fs .pmode-full .pm-fsin{ display:none; }
+html.pmode-fs .pmode-full .pm-fsout{ display:flex; }
+html.pmode-fs .pmode-full{ color:var(--green); border-color:rgba(24,255,0,.45); }
+
+/* separador sutil */
+.pmode-sep{ width:18px; height:1px; background:var(--line); flex:none; }
+
+/* ---- carrossel de dots ---- */
+.pmode-dots{
+  list-style:none; margin:0; padding:0;
+  display:flex; flex-direction:column; align-items:center; gap:12px;
+}
+.pmode-dots li{ display:flex; }
+/* dot de secao desligada (on:false) sai do rail. Precisa ser explicito: o `display:flex` da
+   regra acima VENCE o display:none que o atributo [hidden] traz do user-agent, entao sem esta
+   linha o `li.hidden = true` do renderDotsState nao esconderia nada. */
+.pmode-dots li[hidden]{ display:none; }
+.pmode-dot{
+  position:relative; width:11px; height:11px; padding:0; flex:none;
+  border:1px solid var(--ink-dim); border-radius:50%;
+  background:transparent; cursor:pointer;
+  transition:background .25s, border-color .25s, transform .25s, box-shadow .25s;
+}
+.pmode-dot:hover{ border-color:var(--green); transform:scale(1.15); }
+.pmode-dot.is-visited{ border-color:rgba(24,255,0,.55); background:rgba(24,255,0,.18); }
+.pmode-dot.is-active{
+  border-color:var(--green); background:var(--green);
+  transform:scale(1.35); box-shadow:0 0 12px rgba(24,255,0,.7);
+}
+/* seções ainda não habilitadas (rollout por etapas) */
+.pmode-dot:disabled, .pmode-dot.is-disabled{ opacity:.26; cursor:default; box-shadow:none; }
+.pmode-dot:disabled:hover, .pmode-dot.is-disabled:hover{ transform:none; border-color:var(--ink-dim); }
+.pmode-dot:disabled::after, .pmode-dot.is-disabled::after{ display:none; }
+.sr-only{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+
+/* rótulo flutuante da seção ao passar o mouse no dot */
+.pmode-dot::after{
+  content:attr(data-label);
+  position:absolute; left:22px; top:50%; transform:translateY(-50%);
+  padding:5px 11px; border:1px solid var(--line); border-radius:8px;
+  background:rgba(3,6,3,.92); color:var(--ink);
+  font-size:12.5px; white-space:nowrap; letter-spacing:-.01em;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.pmode-dot:hover::after{ opacity:1; }   /* rótulo só no hover (não fixo no ativo) */
+
+/* ==========================================================================
+   Segurança: nada disso aparece no mobile/tablet
+   ========================================================================== */
+@media (max-width:1024px){
+  .pmode-toggle, .pmode-rail{ display:none !important; }
+  .pmode-cta-group{ display:contents; }   /* CTA volta a ser filho direto do menu */
+}
+
+/* respeita quem prefere menos movimento: sem transições longas no rail */
+@media (prefers-reduced-motion: reduce){
+  .pmode-rail, .pmode-toggle, .pmode-ctrl, .pmode-dot{ transition:none; }
+}
+
+/* ==========================================================================
+   Desktop menor (1025–1500px): o rail fica RECOLHIDO — só uma coluna discreta
+   de dots colada na borda (orientação sutil, sem cobrir o conteúdo) — e EXPANDE
+   ao aproximar o mouse da lateral (ou foco via teclado). Acima de 1500px, o rail
+   segue completo como antes (há margem de sobra).
+   ========================================================================== */
+.pmode-railzone{ display:none; }
+@media (min-width:1025px) and (max-width:1500px){
+  /* zona de hover invisível colada na lateral esquerda */
+  html.pmode-active .pmode-railzone{ display:block; position:fixed; left:0; top:0; bottom:0; width:64px; z-index:899; }
+
+  /* recolhido: sem pílula/blur, só os dots, discreto e colado na borda */
+  html.pmode-active .pmode-rail{
+    left:6px; padding:10px 5px; gap:12px; opacity:.5;
+    background:transparent; border-color:transparent; box-shadow:none;
+    -webkit-backdrop-filter:none; backdrop-filter:none;
+    transition:opacity .25s ease, left .32s cubic-bezier(.16,1.1,.3,1),
+               background .3s ease, padding .3s ease, transform .45s cubic-bezier(.16,1.1,.3,1);
+  }
+  html.pmode-active .pmode-rail .pmode-ctrl,
+  html.pmode-active .pmode-rail .pmode-sep{ display:none; }
+  html.pmode-active .pmode-rail .pmode-dot{ width:8px; height:8px; }
+
+  /* aberto (hover/foco): rail completo desliza pra dentro */
+  html.pmode-active .pmode-rail.pmode-rail-open{
+    left:22px; padding:16px 12px; opacity:1;
+    background:rgba(3,6,3,.72); border-color:var(--line);
+    box-shadow:0 12px 44px rgba(0,0,0,.5);
+    -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+  }
+  html.pmode-active .pmode-rail.pmode-rail-open .pmode-ctrl{ display:flex; }
+  html.pmode-active .pmode-rail.pmode-rail-open .pmode-sep{ display:block; }
+  html.pmode-active .pmode-rail.pmode-rail-open .pmode-dot{ width:11px; height:11px; }
+}
+
+/* ==========================================================================
+   Rail que SOME sozinho (2026-10-05, pedido do dono: "ele precisa ocultar depois de alguns
+   segundos quando entrar no modo apresentacao"). O JS poe `.pmode-rail-idle` depois de alguns
+   segundos sem mexer o MOUSE e tira ao primeiro movimento. Tecla/passador NAO acorda o rail:
+   e com o passador na mao que se apresenta, e cada clique traria o rail de volta para a tela.
+   ⚠ Fica no FIM do arquivo de proposito: tem a mesma especificidade do `.pmode-rail-open` da
+   faixa 1025–1500px e precisa vencer o `opacity:.5` do rail recolhido de la — a ordem decide.
+   ========================================================================== */
+html.pmode-active .pmode-rail.pmode-rail-idle{
+  opacity:0; pointer-events:none; transform:translateY(-50%) translateX(-14px);
+}

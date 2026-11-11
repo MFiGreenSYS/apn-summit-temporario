@@ -1,0 +1,68 @@
+/* ==========================================================================
+   Transição de página "cortina" (MPA)
+   Um painel cobre a tela ao sair e revela ao chegar na página nova, dando
+   sensação de continuidade mesmo mudando de URL. Funciona em qualquer
+   navegador (não depende da View Transitions API, que não roda no Safari iOS).
+   Coordenação entre páginas via sessionStorage (ver js/page-transition.js).
+   ========================================================================== */
+
+.pt-curtain{
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg, #030603);
+  transform: translateY(100%);      /* parado abaixo da viewport */
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* CHEGANDO: cobre instantaneamente (sem flash), setado no <head> antes do paint */
+html[data-pt-state="cover"] .pt-curtain{
+  transform: translateY(0); transition: none; pointer-events: auto;
+}
+/* CHEGANDO: revela — sobe e sai por cima */
+html[data-pt-state="out"] .pt-curtain{
+  transform: translateY(-100%);
+  transition: transform .62s cubic-bezier(.76,0,.24,1);
+  pointer-events: none;
+}
+/* SAINDO: sobe de baixo até cobrir, antes de navegar */
+html[data-pt-state="in"] .pt-curtain{
+  transform: translateY(0);
+  transition: transform .5s cubic-bezier(.76,0,.24,1);
+  pointer-events: auto;
+}
+
+/* elementos que disparam a transição */
+[data-pt-href]{ cursor: pointer; }
+/* ⚠ ERA `cursor: none` (2026-09-09). O motivo original está na linha de cima e deixou de
+   valer: a bolinha verde que substituía o ponteiro sobre os cards foi desligada a pedido do
+   dono ("tire essa bola verde que fica no mouse"). Sem ela, `none` deixava a pessoa SEM
+   CURSOR NENHUM em cima dos cards — o mouse sumia e ninguém sabia onde estava clicando.
+   ⚠ ESTA REGRA MORA AQUI, e não no index.html. Eu procurei "cursor:none" no index e nos js/
+   e não achei nada; quem apontou o culpado foi o navegador, listando de qual folha vinha a
+   regra. Se um dia o cursor dos cards voltar a se comportar estranho, procure NOS CSS
+   separados também — são três (page-transition, presentation-mode, reconhecimento).
+   `pointer` porque estes sete SÃO clicáveis (é o que o `[data-pt-href]` acima já dizia); o
+   Pay, que não tem o atributo, cai no `default` do index.html. */
+.ecard[data-pt-href]{ cursor: pointer; }
+
+/* feedback de clique no card — só filter (não mexe no transform do deck nem no
+   box-shadow !important dos cards): pulso rápido de brilho + glow neon */
+@keyframes ptCardPulse{
+  0%   { filter: brightness(1.55) drop-shadow(0 0 26px rgba(24,255,0,.7)); }
+  100% { filter: none; }
+}
+.ecard.pt-clicked{ animation: ptCardPulse .45s ease-out both; }
+@media (prefers-reduced-motion: reduce){ .ecard.pt-clicked{ animation: none; } }
+
+/* --------------------------------------------------------------------------
+   Intro de apresentação da página que chega.
+   Marque elementos com .pt-intro; escalone com --pt-delay inline se quiser.
+   Começa logo após a cortina começar a revelar (~.28s).
+   -------------------------------------------------------------------------- */
+@keyframes ptIntroUp{ from{ opacity:0; transform:translateY(26px); } to{ opacity:1; transform:none; } }
+.pt-intro{ opacity:0; animation: ptIntroUp .8s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(.28s + var(--pt-delay, 0s)); }
+
+@media (prefers-reduced-motion: reduce){
+  html[data-pt-state] .pt-curtain{ transition-duration: .001s !important; }
+  .pt-intro{ animation: none; opacity: 1; }
+}

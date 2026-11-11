@@ -1,0 +1,97 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+*.swp
+
+# Node (caso venha a usar build tools)
+node_modules/
+
+# Masters das fotos de eventos (74MB): o site serve AVIF -> WebP -> JPG, que estao
+# versionados. Estes PNG sao os originais e o OneDrive ja os guarda — nao precisam
+# pesar no repo nem em cada deploy. O padrao pega so "nome-N.png" (as 40 fotos),
+# preservando cruzeiro-logo.png, experience-logo.png e os *-qrcode.png, que SAO
+# usados como fallback real desses elementos.
+assets/img/eventos/*-[1-8].png
+
+# Referencias de design (screenshots de sites, materiais): 103MB que nao fazem parte
+# do site — nada em index.html/produtos/js/css aponta pra ca. Ficam so no disco/OneDrive.
+# A barra INICIAL e obrigatoria: sem ela, "referencias/" casa com QUALQUER pasta desse nome em
+# qualquer nivel — e silenciosamente engoliu .claude/referencias/, deixando o mapa das colecoes
+# fora do git por vários commits sem ninguém notar.
+/referencias/
+
+# Masters dos pins de graduacao (5,7MB em 5 PNG de 1080x1080). Eram SERVIDOS assim,
+# e como o #boot so sai no window.load, esses 5 arquivos seguravam a tela de loading
+# por ~6,4s em toda primeira visita. O site agora serve grad-*.webp lossless a 420px
+# (676kB no total, SSIM 0,994 = imperceptivel a 203px, que e o tamanho exibido).
+# Os PNG ficam no disco p/ reprocessar se o tamanho de exibicao mudar.
+assets/pins/*.png
+
+# Master da foto da fachada (1,8MB). Dela sai o og-igreen.jpg (134kB), que e a
+# imagem de previa do WhatsApp/redes e ESTA versionada. Mesmo padrao dos outros
+# masters: fica no disco p/ reenquadrar se a previa mudar.
+assets/img/faixada.png
+
+# Master do video da sede (52MB, 1080p 20Mbps com audio). O site serve o tratado
+# (video-igreen.mp4, 5,2MB: camadas de blend assadas, audio removido), que esta
+# versionado. O master fica no disco p/ poder reprocessar se o tratamento mudar.
+assets/video/*-master.mp4
+
+# Master da arte do Eduardo e Ana (1,2MB, 1080x1350). E um POST PRONTO de Instagram, com
+# nome e "Bonus: Carro Eletrico" JA EMBUTIDOS na imagem. O card da rede desenha o nome e o
+# pin por conta, e usa recorte de 273x415 so nas pessoas -- o servido e o eduardo-ana.jpg
+# (25kB), que ESTA versionado. O master fica no disco p/ reenquadrar se precisar. Mesmo
+# padrao dos outros masters deste arquivo (pins, faixada, video da sede, banners do Summit).
+assets/img/rede/*- Embaixador.jpg
+assets/img/rede/*- Royal.jpg
+# ... e QUALQUER .png nesta pasta, porque master de card chega em png (com alpha) e o site
+# NUNCA serve png daqui: o codigo aponta so para .jpg (conferido varrendo index.html e js/).
+# Assim, master novo que chegar em png ja entra ignorado, sem ninguem precisar lembrar.
+assets/img/rede/*.png
+
+# Material de trabalho que nao e o site nem manutencao dele: paginas antigas ja
+# substituidas, anotacoes e um arquivo de teste de video. Ficam no disco de quem
+# tem, e nao existem em nenhum commit — foram removidos do historico tambem.
+produtos/legados/
+docs/
+BACKLOG.md
+teste-video.html
+
+# OS 5 VIDEOS DE APRESENTACAO PASSARAM A SER VERSIONADOS EM 2026-08-13.
+# Eles ficavam AQUI, ignorados, e a decisao foi revertida a pedido do dono: *"faca isso"*, depois
+# de eu apresentar o custo duas vezes. Nao apague este comentario — ele e o registro do porque.
+#
+# POR QUE ELES ESTAVAM FORA: os arquivos antigos somavam 385MB e DOIS deles passavam de 100 MiB,
+# que e o limite POR ARQUIVO do GitHub — o envio era recusado, nao era escolha.
+# O QUE MUDOU: no mesmo dia o dono trocou os quatro por versoes mais curtas (13m11s/385MB viraram
+# 7m18s/193MB) e trouxe o institucional (76MB). Medido: o maior passou a ser 76,2 MiB. Todos
+# cabem, e o bloqueio deixou de existir.
+# O QUE SE GANHOU: o site PUBLICADO passa a servir os videos, entao abrir o link toca o arquivo
+# do proprio site e o YouTube vira reserva de verdade; e um `git clone` ja traz tudo pronto para
+# apresentar offline, que era o pedido de fundo do dia.
+# O QUE SE PAGOU, e e o que nao se desfaz: ~269MB entraram no historico. Reconhecimento e MENSAL
+# (`var MES` no js/reconhecimento.js), entao cada troca futura EMPILHA outro tanto — nao
+# substitui. Em um ano isso e alguns GB, e tirar depois exige reescrever a historia do repo.
+# SE UM DIA PRECISAR VOLTAR ATRAS: nao basta re-ignorar, e preciso `git rm --cached` E reescrever
+# o historico. Pense duas vezes antes de trocar um video "so para testar".
+
+# Masters dos banners do Summit (67MB em 21 JPG de 4000x2250, ~3,2MB cada). O site serve
+# assets/img/summit/ (as mesmas 21 em 1920x1080, 7,6MB no total, ~360kB cada), que ESTAO
+# versionadas. 4000px era 2x o que o visor de tela cheia usa no maior monitor — peso sem
+# nenhum ganho visivel, e o QR code continua nitido e escaneavel a 1920.
+# Os masters ficam no disco p/ reexportar se o tamanho de exibicao mudar. Mesmo padrao dos
+# outros masters deste arquivo (pins, faixada, video da sede).
+# ⚠ A pasta tem ESPACO e ACENTO no nome, de proposito: e o nome que o dono usa. O codigo
+# nao le esta pasta — ele le assets/img/summit/ — mas se um dia ler, precisa de encodeURIComponent.
+assets/img/Banner próximo evento/
+
+# Master do video da Sol no eletroposto (4K, 136MB, 2026-10-14), deixado pelo dono dentro da pasta
+# da galeria do Mob. Passa do limite de 100MB do GitHub e nao e servido: o site toca o
+# assets/video/video-conexao-mob.mp4 (1080p, 13,6MB). Qualquer .mp4 dentro das pastas da galeria
+# e master por definicao -- a galeria so le imagem dali.
+assets/img/ecossistema/**/*.mp4

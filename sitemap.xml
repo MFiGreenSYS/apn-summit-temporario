@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Mapa do site: a home e as 7 paginas de produto.
+     Existe porque as paginas de produto so eram alcancaveis seguindo links a partir da home —
+     com o sitemap, o Google as encontra direto.
+     Ao trocar de dominio, os enderecos abaixo entram na mesma troca do canonical/og:url. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://igreen-apresentacao.vercel.app/</loc>
+    <lastmod>2026-07-28</lastmod>
+  </url>
+  <url>
+    <loc>https://igreen-apresentacao.vercel.app/produtos/conexaogreen.html</loc>
+    <lastmod>2026-07-28</lastmod>
+  </url>
+  <url>
+    <loc>https://igreen-apresentacao.vercel.app/produtos/conexaosolar.html</loc>
+    <lastmod>2026-07-28</lastmod>
+  </url>
+  <url>
+    <loc>https://igreen-apresentacao.vercel.app/produtos/conexaolivre.html</loc>
+    <lastmod>2026-07-28</lastmod>
+  </url>
+  <url>
+    <loc>https://igreen-apresentacao.vercel.app/produtos/conexaoplacas.html</loc>
+    <lastmod>2026-07-28</lastmod>
+  </url>
+  <url>
+    <loc>https://igreen-apresentacao.vercel.app/produtos/conexaotelecom.html</loc>
+    <lastmod>2026-07-28</lastmod>
+  </url>
+  <url>
+    <loc>https://igreen-apresentacao.vercel.app/produtos/conexaoseguros.html</loc>
+    <lastmod>2026-07-28</lastmod>
+  </url>
+  <url>
+    <loc>https://igreen-apresentacao.vercel.app/produtos/conexaoexpansao.html</loc>
+    <lastmod>2026-07-28</lastmod>
+  </url>
+</urlset>

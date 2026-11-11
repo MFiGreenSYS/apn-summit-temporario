@@ -1,0 +1,12 @@
+# iGreen Energy — site institucional
+# Site publico: tudo pode ser indexado. Nao ha area restrita nem conteudo duplicado.
+
+User-agent: *
+Allow: /
+
+# Pastas que existem no disco mas nao fazem parte do site publicado.
+# Ficam aqui por seguranca, caso algum dia sejam servidas por engano.
+Disallow: /produtos/legados/
+Disallow: /docs/
+
+Sitemap: https://igreen-apresentacao.vercel.app/sitemap.xml

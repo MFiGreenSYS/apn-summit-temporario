@@ -1,0 +1,898 @@
+/* ============================================================
+   RECONHECIMENTO — peça animada em dois atos, por qualificação
+   ------------------------------------------------------------
+   Porte para CSS puro do pacote React que o dono mandou
+   (Animacao_Pins_Reconhecimento.zip, 2026-08-09). O original era
+   um CSS Module com nomes gerados em build; aqui tudo virou
+   classe `rec-` de verdade, porque este projeto não tem build.
+   O que NÃO mudou: a geometria e os tempos. Cada número abaixo
+   veio de medição do autor do pacote e está anotado onde importa.
+
+   TOKENS do pacote (medidos nas artes de referência):
+     #1B8ACF estrutural · #28C2FF destaque · fundo #000 puro
+   AQUI eles viraram VARIÁVEIS por nível: o Sênior é verde, o
+   Gestor é laranja e o Executivo é azul, as mesmas cores da
+   escada de qualificações (o array DATA do index). A peça em azul
+   fixo pareceria de outro site quando aberta no Sênior.
+
+   GEOMETRIA — palco fixo de 1920x1080 escalado por
+   min(vw/1920, vh/1080). Zero media query na composição do
+   desktop, igual ao original.
+     perspectiva 1400 · escala do fundo 0,718 -> profundidade 550
+     colunas: passo 11°, raio 1450. Eram 5 (tz 0 / -26,6 / -105,6); desde 2026-08-09 são
+       3 colunas de cards EM LINHA, então os tz usados são 0 e -26,6
+     vertical: cabeça 34-132 · mural 176-742 · reflexo 752-902
+
+   RETRATO é outra história e está no fim do arquivo: o palco de
+   1920x1080 num 390x844 encolhe para k=0,203, uma tira de 219px
+   de altura com nome em 3,6px. Ilegível. O pacote avisa que não
+   existe versão vertical; ela foi feita aqui.
+
+   Só `opacity`, `transform`, `filter` e `stroke-dashoffset` são
+   animados — nenhuma propriedade de layout dentro de @keyframes.
+   ============================================================ */
+
+.rec-overlay{
+  /* cores: o JS sobrescreve as três por nível (ver NIVEIS em js/reconhecimento.js).
+     O azul do pacote fica como padrão porque é o Executivo, o nível para o qual a
+     peça foi desenhada. */
+  --rec-cor:#1B8ACF;
+  --rec-luz:#28C2FF;
+  --rec-fundo:#1466A8;
+  --rec-preto:#000000;
+  --rec-branco:#FFFFFF;
+  --rec-mola:cubic-bezier(.16,1.1,.3,1);
+  --rec-saida:cubic-bezier(.7,0,.3,1);
+  --rec-prof:550px;
+  /* Relógio do 1º ATO, em ms — a entrada do pin, da data, do título e da régua.
+     O 2º ato NÃO tem relógio: ele começa quando a classe `ato2` entra na tela, e a
+     partir dali os atrasos são absolutos (ver o bloco "O 2º ATO COMEÇA AQUI").
+     As antigas --rec-tVarre (4600) e --rec-tNomes (5600) sumiram em 2026-08-09, quando
+     o dono pediu que a troca de ato fosse por clique e não por tempo. */
+  --rec-tSelo:300; --rec-tData:900; --rec-tTitulo:1150;
+  --rec-tRegua:1750; --rec-tExec:1950;
+  /* o total entra DEPOIS da última letra do título começar (tExec + 5 letras x 40ms = 2150)
+     e antes de ela terminar (2930): o número parece nascer do nome, não de outra cena. */
+  --rec-tTotal:2450;
+
+  position:fixed; inset:0; z-index:260;
+  display:grid; place-items:center; overflow:hidden;
+  background:var(--rec-preto); color:var(--rec-branco);
+  font-family:'Inter Display','Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  opacity:0; visibility:hidden; transition:opacity .32s ease;
+}
+.rec-overlay.open{ opacity:1; visibility:visible; }
+.rec-overlay *{ box-sizing:border-box; margin:0; padding:0; }
+.rec-overlay button{ font:inherit; color:inherit; border:0; background:none; }
+
+/* CENTRALIZAÇÃO POR translate, NÃO pelo place-items do grid.
+   O palco tem 1080px de altura de LAYOUT sempre — o scale() é só visual e não muda a
+   caixa. Numa janela de 946px de altura o item fica maior que o container, e aí o
+   `align-items:center` do grid cai no comportamento de "não cortar o começo" e alinha
+   pelo TOPO. Resultado medido em 1920x946: o palco pousava em top=67 e a base ia a
+   1013px — 67px fora da tela — e a legenda "Homem/Mulher/Empresa" sumia embaixo.
+   Com position:absolute + translate(-50%,-50%) o centro é o centro, caiba ou não. */
+.rec-tela{
+  position:absolute; left:50%; top:50%; width:1920px; height:1080px; flex:none;
+  transform:translate(-50%,-50%) scale(var(--rec-k,1)); transform-origin:center center;
+  /* TRANSPARENTE e SEM CLIPE, desde que o cenário saiu daqui (2026-08-09).
+     Com fundo preto o palco desenhava um retângulo 16:9 por cima do cenário de tela
+     cheia — era a "borda" que o dono viu. Com overflow:hidden os véus de blur parariam
+     na beira do palco e a costura apareceria do mesmo jeito. */
+  background:transparent; overflow:visible; isolation:isolate; z-index:1;
+}
+
+/* ============================================================
+   CENÁRIO — tudo que é atmosfera, colado na JANELA
+   ------------------------------------------------------------
+   Vídeo de energia, grade, halo, a sala 3D, o brilho, o horizonte,
+   a neblina e a vinheta. Nada aqui é escalado pelo palco: em
+   qualquer proporção de tela isto cobre os quatro cantos.
+   Antes tudo isto vivia dentro do palco de 1920x1080 e, numa tela
+   que não fosse 16:9, terminava numa borda reta com preto em
+   volta. Foi o pedido do dono: "tem que preencher toda a tela de
+   qualquer dispositivo".
+   ============================================================ */
+.rec-cenario{ position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+/* a sala só entra no 2º ato, como era quando ela morava lá dentro */
+.rec-cenario .rec-sala{ opacity:0; transition:opacity .5s var(--rec-mola); }
+.rec-overlay.ato2 .rec-cenario .rec-sala{ opacity:1; }
+
+/* ================================ FUNDO (dentro do cenário) */
+/* VÍDEO DE ENERGIA — o mesmo loop do fundo da Órbita, com a cor do nível assada no
+   arquivo (três arquivos, ver o comentário no JS). Fica atrás de TUDO: a grade, o halo e
+   a vinheta continuam por cima e é isso que impede o vídeo de disputar com os nomes.
+   A opacidade baixa é o que o mantém como atmosfera e não como assunto. */
+.rec-energia{
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+  opacity:.38; pointer-events:none;
+}
+.rec-grade{
+  position:absolute; inset:-14%;
+  background-image:
+    linear-gradient(var(--rec-grade-cor,rgba(27,138,207,.13)) 1px,transparent 1px),
+    linear-gradient(90deg,var(--rec-grade-cor,rgba(27,138,207,.13)) 1px,transparent 1px);
+  background-size:68px 68px;
+  -webkit-mask-image:radial-gradient(120% 100% at 50% 45%,#000 12%,rgba(0,0,0,.5) 52%,transparent 84%);
+  mask-image:radial-gradient(120% 100% at 50% 45%,#000 12%,rgba(0,0,0,.5) 52%,transparent 84%);
+  opacity:0; animation:recGradeEntra 1.4s var(--rec-mola) both, recGradeDesliza 16s linear infinite;
+}
+@keyframes recGradeEntra{ from{opacity:0;transform:scale(1.06)} to{opacity:.85;transform:scale(1)} }
+@keyframes recGradeDesliza{ to{transform:translate3d(-68px,-68px,0)} }
+.rec-halo{
+  position:absolute; inset:0;
+  background:
+    radial-gradient(46% 60% at 26% 50%,var(--rec-halo1,rgba(27,138,207,.20)),transparent 64%),
+    radial-gradient(60% 70% at 78% 40%,var(--rec-halo2,rgba(40,194,255,.07)),transparent 66%);
+  opacity:0; animation:recAparece 1.8s var(--rec-mola) .2s both;
+}
+@keyframes recAparece{ to{opacity:.6} }
+/* A LINHA DE LUZ FICA NA BORDA (pedido do dono, 2026-08-09: "a linha que fica mais à
+   esquerda ela precisa estar bem na borda para que a animação seja de forma suave pegando
+   da esquerda"). Estava em left:250px, no meio do nada — e a varredura, que entra de
+   translateX(-100%), parecia nascer de outro lugar. Em left:0 a linha é a beira de onde a
+   luz vem: a varredura sai exatamente dali. */
+.rec-barraluz{
+  position:absolute; left:0; top:0; bottom:0; width:2px;
+  background:linear-gradient(to bottom,transparent,var(--rec-luz) 22%,var(--rec-luz) 78%,transparent);
+  box-shadow:0 0 26px var(--rec-glow-m,rgba(40,194,255,.5));
+  transform-origin:top center; transform:scaleY(0);
+  animation:recBarra 1.1s var(--rec-mola) 520ms both;
+}
+@keyframes recBarra{ to{transform:scaleY(1)} }
+.rec-vinheta{ position:absolute; inset:0; background:radial-gradient(120% 92% at 50% 50%,transparent 38%,rgba(0,0,0,.78) 100%); }
+
+/* ================================ ATO 1 */
+.rec-ato{ position:absolute; inset:0; z-index:2; opacity:0; }
+.rec-ato1{
+  display:grid; grid-template-columns:820px 1fr; align-items:center; gap:70px; padding:0 96px;
+  animation:recAcende 0s linear both;
+}
+@keyframes recAcende{ to{opacity:1} }
+@keyframes recApaga{ to{opacity:0} }
+
+.rec-selo{
+  justify-self:center; width:520px; height:520px; opacity:0;
+  animation:recSeloEntra .95s var(--rec-mola) calc(var(--rec-tSelo) * 1ms) both,
+            recFlutua 5.2s ease-in-out calc((var(--rec-tSelo) + 950) * 1ms) infinite;
+  filter:drop-shadow(0 0 46px var(--rec-glow-f,rgba(27,138,207,.46)));
+}
+@keyframes recSeloEntra{ from{opacity:0;transform:scale(.84) rotate(-8deg)} to{opacity:1;transform:scale(1) rotate(0)} }
+@keyframes recFlutua{ 0%,100%{transform:translateY(0) rotate(0)} 50%{transform:translateY(-14px) rotate(.5deg)} }
+/* O PIN é imagem (assets/pins/grad-*.webp), não mais o selo desenhado em SVG.
+   object-fit:contain porque o arquivo é quadrado 420x420 com alpha em volta. */
+.rec-selo img,.rec-selomini img{ width:100%; height:100%; display:block; object-fit:contain; }
+/* halo por trás do pin: é o que devolve o "vivo" que o traço de luz do selo desenhado
+   fazia. Um gradiente radial estático pulsando em opacidade — sem blend, sem filtro de
+   tela cheia, que é o que custa caro neste projeto. */
+.rec-selo{ position:relative; }
+.rec-selo::before{
+  content:''; position:absolute; inset:-6%; border-radius:50%; z-index:-1;
+  background:radial-gradient(circle at 50% 50%,var(--rec-halo1,rgba(27,138,207,.20)) 0%,transparent 68%);
+  animation:recPulsa 3.4s ease-in-out infinite;
+}
+@keyframes recPulsa{ 0%,100%{opacity:.45} 50%{opacity:1} }
+/* .rec-tracador / .rec-tracador2 saíram junto com o selo desenhado (2026-08-09) */
+
+.rec-data{ font-size:30px; font-weight:700; font-style:italic; margin-bottom:14px; }
+.rec-mes{ color:var(--rec-luz); }
+.rec-ato1 .rec-data{ opacity:0; animation:recSobe .8s var(--rec-mola) calc(var(--rec-tData) * 1ms) both; }
+@keyframes recSobe{ from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:none} }
+/* ⚠ recSobe TERMINA EM transform:none, e com fill "both" esse none continua valendo depois
+   que a animação acaba. Em qualquer elemento que dependa de transform para se posicionar
+   (translateX(-50%) para centralizar, translateY(-50%) para alinhar) ele APAGA a posição.
+   Foi o que aconteceu com o contador e com as setas: medido, o contador ficava 193px à
+   direita do centro do palco, e as setas 31px abaixo da linha delas. Por isso quem se
+   posiciona por transform usa recSurge, que mexe SÓ na opacidade e deixa o transform da
+   regra em paz — de quebra, o :hover das setas volta a funcionar. */
+@keyframes recSurge{ from{opacity:0} to{opacity:1} }
+.rec-chapeu{ font-size:86px; font-weight:600; letter-spacing:-.005em; line-height:1; perspective:800px; --rec-base:var(--rec-tTitulo); --rec-passo:34; }
+.rec-titulo{
+  font-size:124px; font-weight:800; letter-spacing:.012em; line-height:1; color:var(--rec-luz);
+  perspective:800px; margin-top:14px;
+  text-shadow:.055em 0 0 var(--rec-sombra1,rgba(27,138,207,.92)), -.03em 0 0 rgba(8,52,88,.9);
+  --rec-base:var(--rec-tExec); --rec-passo:40;
+}
+/* uma letra por vez, girando para cima — o `--i` vem do JS */
+.rec-ltr{
+  display:inline-block; opacity:0;
+  transform:translateY(.55em) rotateX(-58deg) scale(.94); transform-origin:50% 100%;
+  animation:recLetra .78s var(--rec-mola) both;
+  animation-delay:calc((var(--rec-base) + var(--i) * var(--rec-passo)) * 1ms);
+}
+@keyframes recLetra{ to{opacity:1;transform:translateY(0) rotateX(0) scale(1)} }
+.rec-sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+/* ================================ TOTAL DO NÍVEL ("313 SÊNIORS")
+   Mora dentro do .rec-txt1, e isso é de propósito: é o .rec-txt1 que apaga aos 780ms na
+   troca de ato, então o total sai de cena junto com o resto do texto sem precisar de
+   regra própria. Usa recSurge (só opacidade) e não recSobe — ver o aviso do transform:none
+   algumas linhas acima. */
+.rec-total{
+  margin-top:20px; font-size:34px; font-weight:700; line-height:1;
+  letter-spacing:.16em; text-transform:uppercase; color:rgba(232,255,228,.72);
+  opacity:0; animation:recSurge .8s var(--rec-mola) calc(var(--rec-tTotal) * 1ms) both;
+}
+.rec-total-n{ font-size:1.32em; font-weight:800; letter-spacing:.02em; color:var(--rec-luz); }
+.rec-regua{
+  height:2px; width:100%; margin:30px 0 8px;
+  background:linear-gradient(90deg,var(--rec-cor) 0%,var(--rec-luz) 62%,var(--rec-luz) 100%);
+  transform-origin:left center; transform:scaleX(0);
+  box-shadow:0 0 18px var(--rec-glow-r,rgba(40,194,255,.55));
+  animation:recReguaCresce .9s var(--rec-mola) calc(var(--rec-tRegua) * 1ms) both;
+}
+@keyframes recReguaCresce{ to{transform:scaleX(1)} }
+@keyframes recReguaVaza{ 0%{transform:scaleX(1) translateX(0);opacity:1} 100%{transform:scaleX(2.4) translateX(62%);opacity:0} }
+
+/* ================================ VARREDURA (a troca de ato) */
+.rec-varredura{
+  position:absolute; inset:0; z-index:5; pointer-events:none;   /* filho do OVERLAY: varre a janela, não o palco */
+  transform:translate3d(-100%,0,0);   /* parada fora da tela até mandarem varrer */
+}
+.rec-massa{ position:absolute; inset:0; background:var(--rec-preto); }
+.rec-beira{ position:absolute; top:0; bottom:0; right:-2px; width:3px; background:var(--rec-luz); box-shadow:0 0 26px 6px var(--rec-glow-b,rgba(40,194,255,.75)),0 0 90px 26px var(--rec-glow-b2,rgba(27,138,207,.42)); }
+.rec-beiratras{ position:absolute; top:0; bottom:0; left:-1px; width:2px; background:linear-gradient(to bottom,transparent,var(--rec-cor),transparent); box-shadow:0 0 40px 10px var(--rec-glow-bt,rgba(27,138,207,.32)); }
+@keyframes recVarre{ 0%{transform:translate3d(-100%,0,0)} 46%{transform:translate3d(0,0,0)} 100%{transform:translate3d(100%,0,0)} }
+
+/* ============================================================
+   O 2º ATO COMEÇA AQUI — e não num relógio
+   ------------------------------------------------------------
+   Até 2026-08-09 tudo abaixo tinha atraso amarrado a --rec-tVarre
+   (4600ms) e a peça andava sozinha. O dono pediu que a passagem
+   fosse por ação: "no próximo botão que vier ela apaga e aparece a
+   próxima tela". Então o JS só acrescenta a classe `ato2` na tela;
+   uma animação CSS começa no instante em que o elemento ganha a
+   propriedade, e é isso que dispara a coreografia inteira.
+
+   OS ATRASOS SÃO OS MESMOS DE ANTES, só rebaseados: onde havia
+   `tVarre + 780` agora há `780ms`, e onde havia `tNomes + 700`
+   (tNomes = tVarre + 1000) agora há `1700ms`. A cena não mudou de
+   ritmo — mudou de gatilho.
+
+   A conta que amarra tudo: a varredura leva 1,7s e cobre a tela
+   inteira aos 46% dela, ou seja aos 782ms. Por isso o ato 1 apaga
+   e o ato 2 acende aos 780ms: a troca acontece ESCONDIDA atrás do
+   facho de luz. Mexer na duração da varredura obriga a refazer
+   esses dois 780.
+   ============================================================ */
+.rec-overlay.ato2 .rec-varredura{ animation:recVarre 1.7s var(--rec-saida) both; }
+/* SÓ O TEXTO do ato 1 apaga. O pin fica em cena e voa para o cabeçalho — era isso que
+   faltava: antes o ato inteiro apagava e a tela voltava vazia atrás do facho. */
+.rec-overlay.ato2 .rec-txt1{ animation:recApaga 0s linear 780ms both; }
+/* o voo do pin: começa antes de o facho terminar de cobrir e chega enquanto ele sai,
+   então o pin está em cena o tempo todo. Os destinos vêm medidos do JS (mediaVooDoPin). */
+.rec-overlay.ato2 .rec-selo{ animation:recPinVai 1s var(--rec-mola) 620ms both; }
+/* ⚠ O PIN VOADOR MORA NO ATO 1, que é z-index 2 — o MESMO do véu de blur, e vem antes
+   dele no DOM. Resultado: o véu pintava POR CIMA do pin e ele sumia no fundo escuro
+   (era o "cadê os pins"). Subir o ato 1 para 4 no 2º ato resolve sem mexer em mais nada.
+   pointer-events:none junto: com z-index alto e inset:0 ele passaria a comer os cliques
+   da tela inteira, e o clique é justamente o que faz a peça andar. */
+.rec-overlay.ato2 .rec-ato1{ z-index:4; pointer-events:none; }
+/* ⚠ O opacity:1 nos DOIS quadros não é enfeite. A regra base do .rec-selo é opacity:0 —
+   quem o acende é o recSeloEntra do 1º ato. Quando o recPinVai SUBSTITUI aquela animação,
+   o opacity volta a valer 0 pela regra base e o pin fica invisível: medido, ele pousava no
+   lugar exato do cabeçalho com opacidade 0, ou seja, voava sem aparecer. */
+@keyframes recPinVai{
+  from{ opacity:1; transform:translate(0,0) scale(1) }
+  to  { opacity:1; transform:translate(var(--rec-pin-dx,0px),var(--rec-pin-dy,0px)) scale(var(--rec-pin-k,1)) }
+}
+/* o pin do cabeçalho fica invisível mas MANTÉM a caixa: é ela que dá o destino do voo,
+   e é sobre ela que o pin voador pousa. Tirar do fluxo moveria o alvo. */
+.rec-selomini img{ opacity:0; }
+.rec-overlay.ato2 .rec-regua{ animation:recReguaVaza .62s var(--rec-saida) both; }
+.rec-overlay.ato2 .rec-ato2{ animation:recAcende 0s linear 780ms both; }
+.rec-overlay.ato2 .rec-brilhofundo{ animation:recAparece 2s var(--rec-mola) 820ms both; }
+.rec-overlay.ato2 .rec-arte{ animation:recAparece 1.6s var(--rec-mola) 900ms both; }
+.rec-overlay.ato2 .rec-horizonte{ animation:recAparece 1.6s var(--rec-mola) 950ms both; }
+.rec-overlay.ato2 .rec-reflexo{ animation:recApareceReflexo 1.2s var(--rec-mola) 1700ms both; }
+.rec-overlay.ato2 .rec-seta{ animation:recSurge .8s var(--rec-mola) 1900ms both; }
+.rec-overlay.ato2 .rec-paginador{ animation:recSurge .8s var(--rec-mola) 2000ms both; }
+/* A classe entra no OVERLAY e nao na tela: assim tambem alcanca o que for irmao dela. */
+
+/* ================================ ATO 2 · SALA 3D */
+.rec-ato2{ /* fica invisivel ate a classe ato2 entrar */ }
+.rec-sala{ position:absolute; inset:0; perspective:1400px; perspective-origin:50% 46%; overflow:hidden; }
+.rec-face{ position:absolute; background-color:#01070c; }
+.rec-esq{ left:0; top:0; width:var(--rec-prof); height:100%; transform-origin:left center; transform:rotateY(90deg); }
+.rec-dir{ right:0; top:0; width:var(--rec-prof); height:100%; transform-origin:right center; transform:rotateY(-90deg); }
+.rec-chao{ left:0; bottom:0; width:100%; height:var(--rec-prof); transform-origin:center bottom; transform:rotateX(90deg); }
+.rec-teto{ left:0; top:0; width:100%; height:var(--rec-prof); transform-origin:center top; transform:rotateX(-90deg); }
+/* PAREDES SUAVIZADAS (pedido do dono, 2026-08-09: "as paredes laterais e o chão dê uma
+   suavizada para não ficar as bordas muito grossas das paredes, e ela fica gradiente ou
+   passe bem suave para realmente simbolizar uma parede").
+   O que estava errado: a máscara ia de transparente (fundo da sala) a OPACO 100% na beira
+   da tela. Em perspectiva, essa beira é a parte mais perto da câmera — então a parede
+   terminava num corte reto e claro exatamente na borda do quadro, e lia como uma faixa
+   colada, não como parede.
+   Agora a máscara fecha nos DOIS lados: some no fundo da sala e some de novo na beira.
+   O pico de opacidade caiu de 100% para 72% e o azul do fundo escureceu (#061a2b ->
+   #04121e), então a parede sugere em vez de anunciar. */
+.rec-esq,.rec-dir{
+  background-image:linear-gradient(to right,#000 0%,#020a11 46%,#04121e 100%);
+  -webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.28) 26%,rgba(0,0,0,.72) 58%,rgba(0,0,0,.30) 86%,transparent 100%);
+  mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.28) 26%,rgba(0,0,0,.72) 58%,rgba(0,0,0,.30) 86%,transparent 100%);
+}
+.rec-chao{
+  background-image:
+    linear-gradient(to top,#000 0%,#020c14 42%,#04182a 100%),
+    repeating-linear-gradient(to bottom,var(--rec-piso,rgba(27,138,207,.17)) 0 1px,transparent 1px 56px),
+    repeating-linear-gradient(to right,var(--rec-piso2,rgba(27,138,207,.11)) 0 1px,transparent 1px 56px);
+  background-blend-mode:normal,screen,screen;
+  /* CHÃO: a máscara antiga ficava 100% opaca até 34% e o encontro do chão com a parede
+     virava um V duro, bem visível. Agora ela já começa a ceder no topo e some antes do
+     fim, então a quina se dissolve em vez de desenhar uma aresta. */
+  -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,.88) 0%,rgba(0,0,0,.70) 24%,rgba(0,0,0,.30) 58%,transparent 88%);
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.88) 0%,rgba(0,0,0,.70) 24%,rgba(0,0,0,.30) 58%,transparent 88%);
+}
+.rec-teto{
+  background-image:
+    repeating-linear-gradient(to bottom,var(--rec-piso2,rgba(27,138,207,.13)) 0 1px,transparent 1px 56px),
+    repeating-linear-gradient(to right,var(--rec-piso2,rgba(27,138,207,.09)) 0 1px,transparent 1px 56px);
+  -webkit-mask-image:linear-gradient(to top,#000 0%,rgba(0,0,0,.45) 62%,transparent 100%);
+  mask-image:linear-gradient(to top,#000 0%,rgba(0,0,0,.45) 62%,transparent 100%);
+  opacity:.55;
+}
+/* HORIZONTE: era uma linha nítida de ponta a ponta, e no print do dono ela lia como um
+   risco atravessando a cena. Agora nasce e morre bem antes das bordas e o pico é mais
+   fraco, então marca onde o chão encontra o fundo sem virar traço. */
+.rec-horizonte{
+  position:absolute; left:0; right:0; top:83.5%; height:1px;   /* 902/1080 do palco antigo */
+  background:linear-gradient(90deg,transparent 0%,transparent 14%,var(--rec-luz) 40%,var(--rec-luz) 60%,transparent 86%,transparent 100%);
+  box-shadow:0 0 40px 8px var(--rec-glow-h,rgba(40,194,255,.16));
+  opacity:0;
+}
+/* NEBLINA — a última camada de suavização, e a que mais resolve.
+   A sala é uma caixa de 4 faces em 3D, e caixa tem quina. Por mais que se afine a máscara
+   de cada face, as arestas onde elas se encontram continuam retas. Esta camada é um
+   gradiente estático de preto que come as quatro bordas do quadro, dissolvendo as quinas
+   no fundo — é o que faz ler como "ambiente" e não como "caixa".
+   Estática de propósito: nada de mix-blend-mode nem filter em tela cheia, que é a receita
+   de engasgo deste projeto (a GPU releria a tela inteira por quadro). Um gradiente pintado
+   uma vez custa praticamente nada. */
+.rec-neblina{
+  position:absolute; inset:0; z-index:0; pointer-events:none;
+  background:
+    linear-gradient(to right, #000 0%, rgba(0,0,0,.58) 9%, transparent 24%),
+    linear-gradient(to left,  #000 0%, rgba(0,0,0,.58) 9%, transparent 24%),
+    linear-gradient(to top,   #000 0%, rgba(0,0,0,.45) 7%, transparent 19%),
+    linear-gradient(to bottom, transparent 60%, rgba(0,0,0,.5) 85%, #000 100%);
+}
+.rec-arte{ position:absolute; inset:0; opacity:0; }
+.rec-arte svg{ width:100%; height:100%; display:block; }
+/* RAIOS MAIS DISCRETOS. Eram traço 2,6 pulsando até 95% de opacidade — no print do dono
+   apareciam como um padrão de raios laranja gritante em cima da parede, e é o que fazia a
+   parede virar cartaz. Traço mais fino e pico em 48%: continua vivo, mas é textura. */
+.rec-raio-halo{ fill:none; stroke:var(--rec-luz); stroke-width:8; stroke-linejoin:round; opacity:.12; filter:blur(5px); }
+.rec-raio-nucleo{ fill:none; stroke:var(--rec-luz); stroke-width:2; stroke-linejoin:round; }
+/* medido no mp4 de referência: a grade NÃO anda (deriva dx=0 dy=0) e a correlação
+   entre ladrilhos é 0,15 — por isso cada raio pulsa com período e atraso próprios. */
+.rec-ray{ opacity:.10; animation:recBrilho var(--t) ease-in-out var(--d) infinite; }
+@keyframes recBrilho{ 0%,100%{opacity:.06} 50%{opacity:.48} }
+.rec-dir .rec-arte{ transform:scaleX(-1); }
+.rec-teto-arte path{ fill:none; stroke:var(--rec-luz); stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round; filter:drop-shadow(0 0 8px var(--rec-glow-t,rgba(40,194,255,.85))); }
+.rec-teto-arte .rec-fraco path{ stroke:var(--rec-cor); opacity:.45; stroke-width:1.6; filter:none; }
+.rec-brilhofundo{
+  position:absolute; left:50%; top:43.5%; width:81%; height:80%; transform:translate(-50%,-50%);
+  background:radial-gradient(ellipse at center,var(--rec-halo3,rgba(40,194,255,.18)),var(--rec-halo4,rgba(27,138,207,.05)) 46%,transparent 70%);
+  filter:blur(34px); pointer-events:none;
+  opacity:0;
+}
+/* A LUZ DO TOPO (.rec-luztopo) SAIU em 2026-08-09. Era uma barra acesa de 820px logo
+   abaixo do cabeçalho, com um brilho largo que atravessava a cena inteira — o dono pediu
+   para tirar ("img 2, a linha"). Saiu do CSS e do JS; o que dava atmosfera ali agora é o
+   vídeo de energia do fundo. */
+
+/* ================================ MURAL CURVO */
+/* ============================================================
+   O MURAL CRESCEU EM 2026-08-10, e foi o que permitiu as 6 páginas
+   ------------------------------------------------------------
+   Era `top:176; height:566`. Com o teto de 6 páginas o Sênior passou a 53 nomes por
+   página, e em 566px de altura nenhum arranjo dava card legível. Medido no palco de
+   1080: o cabeçalho termina em 146 e o paginador começa em 790 — ou seja, havia 44px
+   de folga em cima e 48 embaixo sem uso nenhum. Agora `top:158; height:624` deixa
+   12px de folga do cabeçalho e 8px do paginador, e são esses +58px que fazem o card
+   de 9 linhas fechar em 55px em vez de 49.
+   ⚠ Os 1378x624 e os vãos 12/16 estão TAMBÉM no js (MURAL_W, MURAL_H, VAO_COL,
+   VAO_LIN): é de lá que sai o número de colunas e a largura útil do texto. Mexeu num,
+   mexa no outro — o sintoma de divergência é nome estourando o card sem erro nenhum.
+   ============================================================ */
+.rec-mural{ position:absolute; left:271px; top:158px; width:1378px; height:624px; transform-style:preserve-3d; display:flex; gap:12px; }
+/* TRÊS colunas dividindo os 1378px (451px cada) — antes eram 5 fixas em 266px.
+   `flex:1 1 0` em vez de largura fixa: o número de colunas vem do JS, e uma largura
+   escrita à mão aqui seria um segundo lugar para dessincronizar. `min-width:0` é o que
+   permite o nome encolher dentro da linha em vez de estourar a coluna. */
+.rec-coluna{
+  flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:16px; transform-style:preserve-3d;
+  /* ORDEM: translateZ ANTES do rotateY, nunca o inverso. Invertido, o rotateY gira o
+     ponto (0,0,tz) em torno do centro e injeta ±39,6px de deslocamento X na coluna
+     externa — é o que empilha um card sobre o outro. */
+  transform:translateZ(var(--tz)) rotateY(var(--ry));
+}
+.rec-vao{ flex:1; visibility:hidden; }
+.rec-cartao{
+  position:relative; flex:1; border-radius:18px; padding:1.5px; overflow:hidden; transform-style:preserve-3d;
+  background:var(--rec-card-bg,rgba(27,138,207,.28)); box-shadow:0 0 26px var(--rec-card-glow,rgba(27,138,207,.22));
+  opacity:0; animation:recAzulejo .74s var(--rec-mola) both;
+  animation-delay:calc((var(--rec-base-az,0) + var(--i) * var(--rec-passo-az,40)) * 1ms);
+  transition:transform .45s var(--rec-mola), box-shadow .45s var(--rec-mola);
+}
+@keyframes recAzulejo{ from{opacity:0;transform:translateY(16px) scale(.9)} to{opacity:1;transform:none} }
+.rec-cartao:hover{ transform:translateZ(26px); box-shadow:0 0 46px var(--rec-glow-hover,rgba(40,194,255,.45)); }
+.rec-anel{
+  position:absolute; top:50%; left:50%; width:170%; aspect-ratio:1;
+  background:conic-gradient(from 0deg,transparent 0 56%,var(--rec-anel1,rgba(27,138,207,.42)) 68%,var(--rec-luz) 77%,var(--rec-anel1,rgba(27,138,207,.42)) 86%,transparent 96%);
+  transform:translate(-50%,-50%) rotate(0deg);
+  animation:recGiraAnel 5.4s linear infinite; animation-delay:calc(var(--i) * -173ms);
+}
+@keyframes recGiraAnel{ to{transform:translate(-50%,-50%) rotate(360deg)} }
+/* CARD EM LINHA: ícone à esquerda, nome à direita, tudo numa linha só.
+   Era coluna (ícone em cima, nome centralizado embaixo em até 2 linhas) até 2026-08-09,
+   quando o dono viu a versão de celular e pediu esse formato no desktop também. O nome
+   é o conteúdo — passou a ter a largura da coluna inteira em vez de um terço dela. */
+.rec-miolo{
+  position:relative; height:100%; border-radius:16.5px;
+  background:radial-gradient(130% 120% at 50% 122%,var(--rec-miolo-luz,rgba(40,194,255,.24)),transparent 60%),linear-gradient(160deg,#07182410,#010a11 56%,#000);
+  background-color:#020c14;
+  display:flex; flex-direction:row; align-items:center; justify-content:flex-start;
+  /* padding e vão apertados quando a peça foi para 4 colunas: cada pixel devolvido ao
+     nome é um nome a menos quebrando em duas linhas. Medido nos 475: com 18px de padding
+     e ícone de 38 eram 136 nomes em 2 linhas (29%); com estes valores caiu para 84 (18%). */
+  gap:12px; padding:14px; text-align:left;
+}
+.rec-icone{ flex:none; width:32px; height:32px; border-radius:999px; display:grid; place-items:center; color:var(--rec-luz); background:var(--rec-icone-bg,rgba(27,138,207,.20)); border:1px solid var(--rec-icone-bd,rgba(40,194,255,.38)); }
+.rec-icone svg{ width:18px; height:18px; display:block; }
+/* corpo por nome: 264px úteis na linha (336 de coluna − 28 de padding − 32 do ícone −
+   12 do vão), largura média do caractere estimada em 0,52 do corpo -> fs1 = 507/n,
+   teto 21. Aqui o clamp de 2 linhas NÃO é mais só rede de segurança: com 4 colunas ele
+   entra em 18% dos nomes, e é por isso que o card tem 81px de altura (4x6) e não 67 (4x7).
+   Ver corpo() e o comentário das colunas no JS. */
+.rec-rotulo{
+  min-width:0; font-size:var(--fs,18px); font-weight:700; line-height:1.22; letter-spacing:.002em;
+  overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; text-wrap:balance;
+}
+/* ============================================================
+   CARD DENSO — a partir de 6 colunas (classe posta pelo JS na .rec-tela)
+   ------------------------------------------------------------
+   Com 6 colunas o card tem 220px de largura e 55px de altura. Nos valores normais
+   (padding 14, ícone 32, vão 12) sobrariam 147px para o nome e a soma padding + duas
+   linhas de 18px daria 58px — 3px acima do card. Apertando padding, ícone e vão, o
+   nome ganha 15px de largura e o card fecha em 53,4px com folga de 1,7.
+   ⚠ Os mesmos três números estão em `medidasDoArranjo()` no JS, que é quem calcula a
+   largura útil passada ao corpo(). Mexeu num, mexa no outro.
+   O line-height cai de 1,22 para 1,18: são 2px por linha, e é o que sobra de folga. */
+.rec-denso .rec-miolo{ gap:9px; padding:9px 11px; border-radius:14px; }
+.rec-denso .rec-icone{ width:26px; height:26px; }
+.rec-denso .rec-icone svg{ width:15px; height:15px; }
+.rec-denso .rec-rotulo{ line-height:1.18; }
+.rec-denso .rec-cartao{ border-radius:15px; padding:1.2px; }
+.rec-denso .rec-anel{ width:150%; }
+.rec-cartao[data-tipo="feminina"]{ background:var(--rec-card-bg-f,rgba(40,194,255,.42)); box-shadow:0 0 30px var(--rec-card-glow-f,rgba(40,194,255,.28)); }
+.rec-cartao[data-tipo="feminina"] .rec-icone{ background:var(--rec-icone-bg-f,rgba(40,194,255,.22)); border-color:var(--rec-icone-bd-f,rgba(40,194,255,.6)); }
+.rec-cartao[data-tipo="empresa"]{ background:var(--rec-card-bg-e,rgba(20,102,168,.62)); box-shadow:0 0 30px var(--rec-card-glow-e,rgba(27,138,207,.34)); }
+.rec-cartao[data-tipo="empresa"] .rec-icone{ border-radius:9px; background:var(--rec-icone-bg-e,rgba(27,138,207,.3)); border-color:var(--rec-icone-bd-e,rgba(27,138,207,.7)); }
+
+/* reflexo: só as formas, sem texto — reflexo com texto rasteriza 30 fontes de novo */
+/* o reflexo do chão desceu junto com o mural: era 752, e o mural agora termina em 782.
+   Ele usa scaleY(-1) com origem no topo, então o que se vê ocupa a faixa ACIMA do
+   `top` — é assim que ele encosta na base dos cards em vez de flutuar longe deles. */
+.rec-reflexo{
+  position:absolute; left:271px; top:792px; width:1378px; height:130px; display:flex; gap:12px;
+  transform:scaleY(-1); transform-origin:top center; filter:blur(8px); opacity:0;
+  -webkit-mask-image:linear-gradient(to top,transparent 2%,rgba(0,0,0,.5) 58%,rgba(0,0,0,.72) 100%);
+  mask-image:linear-gradient(to top,transparent 2%,rgba(0,0,0,.5) 58%,rgba(0,0,0,.72) 100%);
+  pointer-events:none;
+}
+@keyframes recApareceReflexo{ to{opacity:.30} }
+.rec-reflexo .rec-coluna{ gap:16px; }
+.rec-rf{ flex:1; border-radius:18px; background:var(--rec-rf,rgba(27,138,207,.5)); box-shadow:0 0 22px var(--rec-rf-glow,rgba(40,194,255,.5)); }
+.rec-rf[data-tipo="feminina"]{ background:var(--rec-rf-f,rgba(40,194,255,.7)); }
+.rec-rf[data-tipo="empresa"]{ background:var(--rec-rf-e,rgba(20,102,168,.8)); }
+
+/* ================================ TROCA DE PÁGINA — OCULTAR, SEM GLITCH
+   Pedido do dono (2026-08-10): "tire o glitch dos nomes quando passa para as páginas, pode
+   ocultar somente". Aqui havia uma FALHA DE SINAL por card: `steps(1,end)` com salto de até
+   18px, `skewX` e `brightness(2.8)` piscando, escalonada por `--i`. Numa lista de 23 nomes
+   isso era 23 cards tremendo em tempos diferentes — de longe, na tela de apresentação, lia
+   como defeito e não como efeito.
+   Agora é o que ele pediu: os nomes somem juntos e os novos aparecem. Só opacidade.
+
+   SEM `animation-delay` por card, de propósito: o escalonamento é justamente o que fazia a
+   troca parecer onda de falha. Todos ao mesmo tempo é o que significa "ocultar".
+   Sem transform e sem filter também não é detalhe — `filter` numa lista inteira é trabalho
+   por quadro na GPU, que é a causa de engasgo mais comum deste projeto.
+   O ruído de tela (.rec-ruido) fazia parte do mesmo efeito e deixou de ser disparado; ver
+   o comentário no `irPara()` do js/reconhecimento.js. */
+.rec-sai{ animation:recSome .16s linear both; }
+@keyframes recSome{ from{opacity:1} to{opacity:0} }
+.rec-entra{ animation:recVolta .2s linear both; }
+@keyframes recVolta{ from{opacity:0} to{opacity:1} }
+/* ⚠ FIM DA TROCA — trava o card no lugar. Sem isto a regra base do .rec-cartao volta a
+   valer quando o `rec-entra` sai, o navegador entende animação NOVA e recomeça o
+   recAzulejo do zero (medido: playState "running", currentTime 0, e a base parte de
+   opacity:0). O resultado era a página inteira apagar e os nomes entrarem DE NOVO, logo
+   depois de já terem entrado. DOIS seletores de classe de propósito: tem de vencer o
+   .rec-sai — e por isso o irPara() remove esta classe ANTES de pôr o rec-sai. */
+.rec-cartao.rec-fixo{ animation:none; opacity:1; }
+.rec-reflexo-falha{ animation:recFalhaRef .42s ease-out both; }
+@keyframes recFalhaRef{ 0%{opacity:.30} 30%{opacity:.04} 100%{opacity:0} }
+.rec-ruido{
+  position:absolute; inset:0; z-index:4; pointer-events:none; opacity:0;
+  background:
+    linear-gradient(90deg,var(--rec-ruido1,rgba(40,194,255,.16)),transparent 22%,transparent 78%,var(--rec-ruido2,rgba(27,138,207,.16))),
+    repeating-linear-gradient(to bottom,rgba(255,255,255,.055) 0 2px,transparent 2px 5px);
+}
+.rec-ruido-on{ animation:recRuido .42s steps(1,end) both; }
+@keyframes recRuido{ 0%{opacity:0} 12%{opacity:1} 24%{opacity:.2} 38%{opacity:.9} 52%{opacity:.15} 70%{opacity:.5} 100%{opacity:0} }
+
+/* ================================ SETAS E PAGINADOR */
+.rec-seta{
+  position:absolute; top:459px; transform:translateY(-50%); z-index:6;
+  width:62px; height:62px; border-radius:999px; display:grid; place-items:center;
+  border:1px solid var(--rec-borda,rgba(40,194,255,.34)); background:rgba(1,10,17,.62);
+  cursor:pointer; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  opacity:0;
+  transition:transform .38s var(--rec-mola), border-color .38s var(--rec-mola), color .38s var(--rec-mola), background .38s var(--rec-mola);
+}
+.rec-seta:hover{ border-color:var(--rec-luz); color:var(--rec-luz); background:var(--rec-tint,rgba(40,194,255,.12)); }
+.rec-seta:focus-visible{ outline:2px solid var(--rec-luz); outline-offset:4px; }
+.rec-seta[aria-disabled="true"]{ opacity:.22; cursor:default; pointer-events:none; }
+.rec-seta svg{ width:13px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; }
+.rec-seta-ant{ left:120px; }
+.rec-seta-pro{ right:120px; }
+.rec-seta-ant:hover{ transform:translateY(-50%) translateX(-4px); }
+.rec-seta-pro:hover{ transform:translateY(-50%) translateX(4px); }
+.rec-paginador{
+  position:absolute; left:960px; top:790px; transform:translateX(-50%); z-index:6;
+  display:flex; align-items:center; gap:14px;
+  opacity:0;
+}
+.rec-ponto{ width:7px; height:7px; border-radius:999px; background:rgba(255,255,255,.20); transition:background .4s var(--rec-mola), transform .4s var(--rec-mola); }
+.rec-ponto-on{ background:var(--rec-luz); transform:scale(1.5); box-shadow:0 0 14px var(--rec-glow-p,rgba(40,194,255,.8)); }
+.rec-contador{ font-size:12px; letter-spacing:.26em; color:rgba(255,255,255,.42); font-variant-numeric:tabular-nums; margin-left:8px; white-space:nowrap; }
+
+/* ============================================================
+   VÉUS DE BLUR EM GRADIENTE — topo e base
+   ------------------------------------------------------------
+   Pedido do dono (2026-08-09): "dá uma suavizada também na parte
+   de cima no header, dá um blur gradiente para ele não ficar
+   chapado daquele jeito, tanto embaixo quanto em cima".
+   O truque é a MÁSCARA sobre o backdrop-filter: o desfoque nasce
+   forte na borda e some no meio da tela, então não existe linha
+   onde ele começa — é o que separa "blur em gradiente" de "faixa
+   borrada com quina", que era justamente o chapado.
+   z-index 2: por cima do mural e da sala, por baixo do cabeçalho
+   (3) e das setas/contador (6).
+   ⚠ CUSTO: backdrop-filter relê os pixels de baixo. Por isso são
+   duas FAIXAS e não a tela toda, e por isso a máquina fraca (a
+   classe `leve`) fica só com o gradiente, sem desfoque nenhum.
+   ============================================================ */
+/* OS VÉUS PRECISAM CHEGAR NA BORDA DA JANELA, e eles vivem DENTRO do palco escalado.
+   A conta desfaz a escala: o palco tem 1920x1080 de layout e é escalado por --rec-k, então
+   a janela, medida em unidades de palco, tem (100vw / k) por (100vh / k). O canto dela em
+   relação ao palco é 960 - 50vw/k na horizontal e 540 - 50vh/k na vertical.
+   Sem isto o desfoque parava na beira do palco e aparecia uma costura vertical exatamente
+   onde o cenário continuava sem véu. (No retrato o palco JÁ é a janela — lá estas contas
+   são desligadas no fim do arquivo.) */
+.rec-veu{
+  position:absolute; z-index:2; pointer-events:none;
+  left:calc(960px - 50vw / var(--rec-k,1));
+  width:calc(100vw / var(--rec-k,1));
+}
+.rec-veu-topo{
+  top:calc(540px - 50vh / var(--rec-k,1)); height:210px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.62),rgba(0,0,0,.22) 55%,transparent);
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  -webkit-mask-image:linear-gradient(to bottom,#000 0%,rgba(0,0,0,.72) 42%,transparent 100%);
+  mask-image:linear-gradient(to bottom,#000 0%,rgba(0,0,0,.72) 42%,transparent 100%);
+}
+.rec-veu-base{
+  bottom:calc(540px - 50vh / var(--rec-k,1)); height:180px;
+  background:linear-gradient(to top,rgba(0,0,0,.62),rgba(0,0,0,.22) 55%,transparent);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  -webkit-mask-image:linear-gradient(to top,#000 0%,rgba(0,0,0,.72) 42%,transparent 100%);
+  mask-image:linear-gradient(to top,#000 0%,rgba(0,0,0,.72) 42%,transparent 100%);
+}
+.rec-leve .rec-veu{ backdrop-filter:none; -webkit-backdrop-filter:none; }
+
+/* ================================ CABEÇALHO */
+.rec-cabeca{ position:absolute; left:50%; top:34px; transform:translateX(-50%); z-index:3; display:flex; align-items:center; gap:22px; }
+.rec-selomini{ width:98px; height:98px; flex:none; filter:drop-shadow(0 0 24px var(--rec-glow-sm,rgba(27,138,207,.6))); }
+.rec-cabeca .rec-data{ margin-bottom:4px; font-size:20px; }
+.rec-rec{ font-size:25px; font-weight:400; letter-spacing:.01em; line-height:1.1; }
+.rec-reguamini{ height:2px; background:linear-gradient(90deg,var(--rec-cor),var(--rec-luz)); margin:6px 0; box-shadow:0 0 14px var(--rec-glow-r,rgba(40,194,255,.5)); }
+.rec-exe{ font-size:42px; font-weight:800; letter-spacing:.06em; color:var(--rec-luz); line-height:1; text-shadow:.05em 0 0 var(--rec-sombra1,rgba(27,138,207,.9)), -.028em 0 0 rgba(8,52,88,.9); }
+/* A legenda "Homem / Mulher / Empresa" e o botao Repetir sairam em 2026-08-09 a pedido
+   do dono ("pode tirar essas nomenclaturas"). Com eles fora, a faixa de baixo ficou so
+   com as setas e o contador — e o contador voltou a ser o centro da linha. */
+
+/* fechar e repetir — os dois únicos controles que este projeto acrescentou ao pacote.
+   Ficam FORA do palco escalado, senão encolhem junto e viram alvo de 12px no notebook. */
+.rec-fechar{
+  position:absolute; z-index:20; cursor:pointer;
+  border:1px solid rgba(255,255,255,.18); background:rgba(0,0,0,.55);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  transition:transform .35s var(--rec-mola), border-color .35s var(--rec-mola), color .35s var(--rec-mola);
+}
+.rec-fechar{ top:18px; right:18px; width:42px; height:42px; border-radius:50%; font-size:16px; line-height:1; display:grid; place-items:center; }
+.rec-fechar:hover{ transform:translateY(-2px); border-color:var(--rec-luz); color:var(--rec-luz); }
+.rec-fechar:focus-visible{ outline:2px solid var(--rec-luz); outline-offset:3px; }
+
+/* PORTÃO DE HARDWARE — hardwareConcurrency <= 4 ou ponteiro grosso.
+   Os 30 gradientes cônicos girando e os 84 raios das paredes são a conta que pesa.
+   Aditivo: máquina boa não muda em nada. */
+.rec-leve .rec-ray{ animation:none; opacity:.18; }
+.rec-leve .rec-anel{
+  background:linear-gradient(120deg,var(--rec-anel1,rgba(27,138,207,.5)),var(--rec-luz),var(--rec-anel1,rgba(27,138,207,.5)));
+  width:100%; height:100%; aspect-ratio:auto;
+  animation:recRespira 4.2s ease-in-out infinite; animation-delay:calc(var(--i) * -140ms);
+}
+@keyframes recRespira{ 0%,100%{opacity:.28} 50%{opacity:.9} }
+
+/* ============================================================
+   POPUP DE VÍDEO — só no Executivo, entre as fotos e os nomes
+   ------------------------------------------------------------
+   Pedido do dono: "no do executivo preciso que antes do nome ele
+   apareça as fotos e algum popup sinalizando um play de video.
+   sem funcionalidade."
+   Por isso ele é um CARTÃO POR CIMA da galeria, e não uma tela
+   nova: as fotos precisam continuar aparecendo atrás. O z-index
+   230 fica acima do .grad-modal (200) e abaixo do .rec-overlay
+   (260), que é a ordem em que os três aparecem.
+   NÃO TOCA VÍDEO NENHUM, de propósito. O play é sinalização.
+   ============================================================ */
+.recvid{
+  position:fixed; inset:0; z-index:230; display:grid; place-items:center;
+  opacity:0; visibility:hidden; transition:opacity .3s ease;
+  font-family:'Inter Display','Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+}
+.recvid.open{ opacity:1; visibility:visible; }
+/* fundo só escurece o suficiente para as fotos continuarem legíveis atrás */
+.recvid-bd{ position:absolute; inset:0; background:rgba(2,5,3,.52); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); }
+.recvid-card{
+  position:relative; z-index:1; width:min(560px,86vw); border-radius:22px; overflow:hidden;
+  border:1px solid var(--recvid-line,rgba(56,189,248,.42)); background:#040a10;
+  box-shadow:0 40px 130px rgba(0,0,0,.72),0 0 70px var(--recvid-glow,rgba(56,189,248,.20));
+  transform:translateY(16px) scale(.985); transition:transform .42s cubic-bezier(.16,1,.3,1);
+  cursor:pointer; text-align:left;
+}
+.recvid.open .recvid-card{ transform:none; }
+.recvid-thumb{ position:relative; aspect-ratio:16/9; overflow:hidden; background:#02060a; }
+/* 78% e não 62%: a capa do Acionista usa `mundo-1`, que é uma foto escura, e a 62% ela
+   sumia — o cartão ficava quase preto atrás do play. As três capas usam a mesma regra. */
+.recvid-thumb img{ width:100%; height:100%; object-fit:cover; display:block; opacity:.78; }
+.recvid-thumb::after{ content:''; position:absolute; inset:0; background:radial-gradient(70% 70% at 50% 50%,transparent 30%,rgba(0,0,0,.62) 100%); }
+.recvid-play{
+  position:absolute; inset:0; margin:auto; width:86px; height:86px; border-radius:50%; z-index:2;
+  display:grid; place-items:center;
+  border:1.5px solid var(--recvid-line,rgba(56,189,248,.55)); background:rgba(2,10,16,.55);
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  box-shadow:0 0 44px var(--recvid-glow,rgba(56,189,248,.34));
+}
+.recvid-play svg{ width:30px; height:30px; display:block; margin-left:4px; fill:var(--recvid-acc,#38bdf8); }
+/* o anel que pulsa é o que faz o cartão "pedir" o play. Só transform e opacity. */
+.recvid-pulso{
+  position:absolute; inset:0; margin:auto; width:86px; height:86px; border-radius:50%; z-index:1;
+  border:1.5px solid var(--recvid-acc,#38bdf8);
+  animation:recvidPulso 2.4s ease-out infinite;
+}
+@keyframes recvidPulso{ 0%{transform:scale(1);opacity:.55} 70%{transform:scale(1.9);opacity:0} 100%{transform:scale(1.9);opacity:0} }
+.recvid-txt{ padding:18px 22px 20px; }
+.recvid-kick{ font-size:11px; letter-spacing:.34em; text-transform:uppercase; color:var(--recvid-acc,#38bdf8); font-weight:700; }
+.recvid-txt h4{ font-size:20px; font-weight:500; color:#f2fff0; margin-top:7px; letter-spacing:-.01em; }
+.recvid-txt p{ font-size:13px; color:rgba(232,255,228,.62); margin-top:5px; }
+.recvid-x{
+  position:absolute; top:12px; right:12px; z-index:3; width:36px; height:36px; border-radius:50%;
+  border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.45); color:#fff; font-size:14px;
+  display:grid; place-items:center; cursor:pointer;
+}
+
+/* botão que leva das fotos ao reconhecimento, dentro da galeria */
+.gm-rec-btn{
+  margin-top:12px; width:100%; padding:11px 16px; border-radius:999px; cursor:pointer;
+  border:1px solid var(--acc-line); background:var(--acc-tint); color:var(--acc);
+  font-family:inherit; font-size:12px; font-weight:700; letter-spacing:.2em; text-transform:uppercase;
+  transition:transform .3s cubic-bezier(.16,1.1,.3,1), background .3s ease, border-color .3s ease;
+}
+.gm-rec-btn:hover{ transform:translateY(-2px); background:var(--acc-glow2); border-color:var(--acc); color:#020806; }
+
+/* ============================================================
+   RETRATO / TELA PEQUENA
+   ------------------------------------------------------------
+   O palco de 1920x1080 num 390x844 dá k=0,203: uma tira de 219px
+   de altura, com o nome saindo em 3,6px. Ilegível não é adaptar.
+   Aqui a peça deixa de ser palco fixo e vira fluxo: mesmas cores,
+   mesmo selo, mesmo cartão — sem a sala 3D, sem o reflexo e sem
+   as paredes de raios (o que some é o que não cabe e o que mais
+   custa por quadro num celular).
+   O mural em coluna única vem do JS: em tela pequena ele monta
+   uma lista plana em vez das 5 colunas curvas, porque a curvatura
+   depende de a coluna existir.
+   ============================================================ */
+@media (max-width:1024px), (orientation:portrait){
+  /* no retrato o palco deixa de ser palco: ocupa a tela e não escala nem translada */
+  .rec-tela{ left:0; top:0; width:100vw; height:100dvh; height:100vh; transform:none; }
+  .rec-ato1{ grid-template-columns:1fr; grid-template-rows:auto auto; align-content:center; justify-items:center; gap:18px; padding:0 26px; text-align:center; }
+  .rec-selo{ width:min(210px,46vw); height:min(210px,46vw); }
+  .rec-data{ font-size:16px; margin-bottom:8px; }
+  .rec-chapeu{ font-size:clamp(22px,7.4vw,34px); }
+  .rec-titulo{ font-size:clamp(34px,12vw,58px); margin-top:8px; }
+  .rec-total{ font-size:clamp(13px,4.2vw,19px); margin-top:10px; letter-spacing:.12em; }
+  .rec-regua{ margin:14px 0 6px; }
+  .rec-barraluz{ display:none; }
+
+  /* a sala, o reflexo e os raios saem: não cabem e são o que mais pesa */
+  .rec-sala,.rec-reflexo,.rec-horizonte,.rec-brilhofundo{ display:none; }
+
+  /* o padding da direita é a vaga do ✕. Medido em 390x844: sem ele o botão pousava
+     em cima do selo e do título, e o toque de fechar caía no cabeçalho. */
+  .rec-cabeca{ position:absolute; left:0; right:0; top:14px; transform:none; justify-content:center; gap:12px; padding:0 62px 0 16px; }
+  .rec-selomini{ width:54px; height:54px; }
+  .rec-cabeca .rec-data{ font-size:12px; margin-bottom:2px; }
+  .rec-rec{ font-size:13px; }
+  .rec-exe{ font-size:22px; }
+
+  /* mural vira lista rolável de uma coluna */
+  .rec-mural{
+    position:absolute; left:0; right:0; top:92px; bottom:86px; width:auto; height:auto;
+    display:grid; grid-template-columns:1fr; gap:10px; align-content:start;
+    padding:0 16px 8px; overflow-y:auto; -webkit-overflow-scrolling:touch; transform-style:flat;
+  }
+  .rec-mural .rec-cartao{ flex:none; min-height:64px; }
+  /* o card em linha já é o padrão desde 2026-08-09; aqui só aperta para a tela pequena */
+  .rec-miolo{ gap:12px; padding:11px 14px; }
+  .rec-icone{ width:32px; height:32px; }
+  .rec-icone svg{ width:18px; height:18px; }
+  .rec-rotulo{ font-size:15px !important; }   /* o --fs do desktop é calculado para 266px de largura */
+
+  /* A FAIXA DE BAIXO ficou com SETAS + CONTADOR só, depois que a legenda e o Repetir
+     saíram (2026-08-09). Os valores continuam vindo de medir colisão real de caixa:
+     em 390x844 o paginador encostava na seta da direita por 1px, e por isso o contador
+     aperta o tracking aqui. */
+  /* no retrato o palco JÁ é a janela: as contas de desescala do desktop sairiam erradas
+     (960px - 50vw daria 765px num celular de 390) e o véu iria parar fora da tela */
+  .rec-veu{ left:0; right:0; width:auto; }
+  .rec-veu-topo{ top:0; height:120px; backdrop-filter:blur(11px); -webkit-backdrop-filter:blur(11px); }
+  .rec-veu-base{ bottom:0; height:104px; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+  .rec-seta{ top:auto; bottom:14px; width:46px; height:46px; transform:none; }
+  .rec-seta-ant{ left:16px; } .rec-seta-pro{ right:16px; }
+  .rec-seta-ant:hover,.rec-seta-pro:hover{ transform:none; }
+  /* o paginador vive ENTRE as duas setas: 390 - 2x(16+46) = 266px de vão. Por isso o
+     contador aperta o tracking aqui — com o de desktop ele encostava na seta. */
+  .rec-paginador{ left:50%; top:auto; bottom:28px; gap:9px; max-width:250px; }
+  .rec-contador{ font-size:11px; letter-spacing:.12em; margin-left:5px; }
+  /* REPETIR desce para a faixa de baixo: no topo ele disputava espaço com o cabeçalho
+     e com o ✕ numa tela de 390px. Aqui divide a linha com a legenda, que é à esquerda. */
+}
+
+/* ================================ MOVIMENTO REDUZIDO */
+@media (prefers-reduced-motion:reduce){
+  .rec-overlay *,.rec-overlay *::before,.rec-overlay *::after{
+    animation-duration:.001ms !important; animation-delay:0ms !important;
+    animation-iteration-count:1 !important; transition-duration:.001ms !important;
+  }
+  .rec-ato1{ opacity:0; }
+  .rec-varredura,.rec-ruido{ display:none; }
+  .recvid-pulso{ display:none; }
+}
+
+/* ============================================================================
+   2º ATO EM IMAGEM — Diretor e Acionista (2026-08-10)
+   ----------------------------------------------------------------------------
+   Pedido do dono: a sequência tem de ser IDÊNTICA à do Sênior/Executivo. Por isso o 1º ato
+   (pin voando, data, RECONHECIMENTO, nome do nível, total, varredura) não tem uma linha de
+   CSS própria aqui: é o mesmo. O que muda é só o miolo do 2º ato.
+
+   A CONTA DA MOLDURA, no palco de 1920×1080: o cabeçalho termina em 146, e o paginador
+   precisa de ar embaixo. Sobra a faixa 158→990, ou seja 832px de altura — que em 16:9 dá
+   1479px de largura, e centrada em 1920 começa em x=220. Esses quatro números são a moldura.
+   O paginador desce para 1012 porque no lugar antigo (790) ele cairia DENTRO da arte.
+   ============================================================================ */
+.rec-modoimg .rec-mural{
+  left:220px; top:158px; width:1479px; height:832px;
+  display:block; gap:0; transform-style:flat;
+}
+/* A CAIXA que abraça a arte. Ela não desenha nada — existe só para o play ilustrativo ter
+   um sistema de coordenadas que é o da ARTE, e não o do mural. No desktop os dois
+   coincidem (o mural é 1479×832, 16:9 exato), mas no retrato o mural é uma caixa alta com
+   a arte centrada dentro, e ali uma porcentagem do mural cairia longe da moldura.
+   `aspect-ratio:16/9` resolve os dois de uma vez porque TODAS as artes são 1920×1080 —
+   conferido arquivo por arquivo. Arte em outra proporção romperia isso, e é o único jeito
+   de romper: então não misture proporção nesta pasta. */
+.rec-modoimg .rec-artebox{
+  position:relative; display:block; margin:auto;
+  width:100%; max-width:100%; max-height:100%; aspect-ratio:16/9;
+}
+.rec-modoimg .rec-artefoto{
+  /* contain e NUNCA cover: a arte tem nome de gente e cidade escritos, cortar é inaceitável */
+  width:100%; height:100%; object-fit:contain; display:block;
+  border-radius:14px;
+}
+
+/* ============================================================================
+   O PLAY ILUSTRATIVO (2026-08-10)
+   ----------------------------------------------------------------------------
+   "insira essa imagem como a última e simule um play ilustrativo."
+
+   ⚠ NÃO TOCA VÍDEO NENHUM — não há elemento de vídeo, iframe nem requisição. É a mesma
+   sinalização do cartão `.recvid` da capa das graduações, e de propósito: no dia em que
+   existir vídeo de verdade, ele entra no lugar disto sem redesenhar nada.
+
+   `pointer-events:none` não é detalhe: o próximo clique tem de chegar a quem sempre o
+   recebeu, senão "depois em outro click ele sai e continua para o gráfico" pararia de
+   funcionar exatamente nesta tela.
+
+   As quatro medidas (left/top/width/height) vêm do JS, do PLAY_CAIXA, porque descrevem
+   ONDE A MOLDURA ESTÁ DENTRO DO ARQUIVO — medido decodificando o jpeg, não estimado.
+   Aqui ficam só as que descrevem o desenho.
+
+   CUSTO POR QUADRO: só `transform` e `opacity`, nunca largura ou posição — a regra do
+   projeto. O anel gira em transform, a barra corre em `scaleX`. Nada de `filter` ou
+   `mix-blend-mode` em camada grande, que é a causa real de engasgo aqui.
+   ============================================================================ */
+.rec-play{ position:absolute; pointer-events:none; z-index:3; }
+/* o disco: 22% da largura da moldura, então ele acompanha a arte em qualquer tela em vez
+   de virar um botão gigante no celular e um ponto no telão. */
+.rec-play-botao{
+  position:absolute; inset:0; margin:auto; width:22%; aspect-ratio:1; border-radius:50%;
+  display:grid; place-items:center;
+  border:1.5px solid rgba(255,255,255,.62); background:rgba(4,10,8,.42);
+  backdrop-filter:blur(5px); -webkit-backdrop-filter:blur(5px);
+  box-shadow:0 0 38px rgba(0,0,0,.45);
+  animation:recPlayLatir 2.6s ease-in-out infinite;
+}
+.rec-play-botao svg{ width:42%; height:42%; display:block; margin-left:7%; fill:#fff; }
+/* o anel que sai do disco — o mesmo gesto do .recvid-pulso da capa, para as duas telas
+   falarem a mesma língua. Aqui em % porque a moldura muda de tamanho com a tela. */
+.rec-play-anel{
+  position:absolute; inset:0; margin:auto; width:22%; aspect-ratio:1; border-radius:50%;
+  border:1.5px solid var(--rec-luz,#CBD5E1);
+  animation:recPlayAnel 2.6s ease-out infinite;
+}
+@keyframes recPlayAnel{ 0%{transform:scale(1);opacity:.5} 70%{transform:scale(1.85);opacity:0} 100%{transform:scale(1.85);opacity:0} }
+@keyframes recPlayLatir{ 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+/* A BARRA é o que faz a tela ler como TOCANDO. Sem ela, um play parado lê como pausado —
+   e o pedido era simular o play, não sinalizar que existe um vídeo.
+   Corre UMA vez e para cheia (`forwards`, sem `infinite`): numa apresentação ao vivo uma
+   barra reiniciando para sempre puxa o olho para longe de quem está falando. */
+.rec-play-barra{
+  position:absolute; left:8%; right:8%; bottom:5.5%; height:3px; border-radius:2px;
+  background:rgba(255,255,255,.22); overflow:hidden;
+}
+.rec-play-barra i{
+  position:absolute; inset:0; display:block; border-radius:2px;
+  background:var(--rec-luz,#CBD5E1);
+  transform-origin:left center;
+  /* `both` e nao `forwards`, e isto foi MEDIDO: com `forwards` o atraso de .35s deixa a
+     barra sem transform nenhum, o que a renderiza CHEIA — e ela saltava de cheia para
+     vazia no instante em que a animacao comecava. `both` faz o quadro do atraso usar o
+     `from` (scaleX(0)), entao ela nasce vazia e so cresce. */
+  animation:recPlayCorre 9s linear .35s both;
+}
+@keyframes recPlayCorre{ from{transform:scaleX(0)} to{transform:scaleX(1)} }
+
+/* Movimento reduzido. O bloco geral lá em cima já zera a duração de tudo dentro do
+   `.rec-overlay`, e com `forwards` a barra pularia para CHEIA — que lê como "acabou", não
+   como um player. Aqui ela fica parada em 38%: continua sendo a imagem de um vídeo em
+   andamento, sem nada se movendo. O anel sai, igual ao `.recvid-pulso`.
+   Fica DEPOIS das regras do play de propósito: assim não depende de quem vem primeiro no
+   arquivo. O `!important` é necessário porque animação vence declaração normal. */
+@media (prefers-reduced-motion:reduce){
+  .rec-play-anel{ display:none; }
+  .rec-play-barra i{ transform:scaleX(.38) !important; }
+}
+/* o reflexo do chão espelha COLUNAS DE CARDS; refletir uma foto inteira de cabeça para baixo
+   não é o mesmo efeito, é outro. Sai — e sai por CSS para o JS não precisar saber disso. */
+.rec-modoimg .rec-reflexo{ display:none; }
+.rec-modoimg .rec-paginador{ top:1012px; }
+/* as setas ficam onde estão: medido, a da direita ocupa 1738→1800 e a moldura termina em
+   1699, então não há sobreposição em nenhuma das duas. */
+@media (max-width:1024px), (orientation:portrait){
+  /* no retrato o palco JÁ é a janela e o mural virava lista rolável — aqui não há lista, é
+     uma arte só, então ele volta a ser uma caixa centrada com a arte inteira dentro. */
+  .rec-modoimg .rec-mural{
+    left:0; right:0; top:92px; bottom:86px; width:auto; height:auto;
+    display:grid; place-items:center; padding:0 12px; overflow:visible;
+  }
+  .rec-modoimg .rec-artefoto{ width:100%; height:auto; max-height:100%; border-radius:10px; }
+  .rec-modoimg .rec-paginador{ top:auto; }
+}

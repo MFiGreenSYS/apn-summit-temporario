@@ -1,0 +1,61 @@
+/* ==========================================================================
+   iGreen — Design Tokens
+   Fundação compartilhada para as telas internas (produtos/).
+   A landing (index.html) mantém seus próprios tokens inline; este arquivo
+   existe para as páginas novas reusarem cores, fontes e tipografia base
+   sem duplicar. Caminhos são relativos a este arquivo (css/).
+   ========================================================================== */
+
+@font-face {
+  font-family: 'Inter Display';
+  src: url('../assets/fonts/InterDisplay-Regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Inter Display';
+  src: url('../assets/fonts/InterDisplay-Medium.woff2') format('woff2');
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+
+:root {
+  /* cores — as mesmas da landing */
+  --bg:       #030603;
+  --green:    #18FF00;
+  --ink:      #f2fff0;
+  --ink-dim:  rgba(232,255,228,.62);
+  --line:     rgba(232,255,228,.13);
+
+  /* tipografia */
+  --font-d: 'Inter Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* escala de espaçamento (mobile-first, alinhada ao refino da landing) */
+  --gutter: 20px;          /* respiro lateral padrão das seções */
+  --sec-pad-top: 72px;     /* topo padrão de seção */
+  --radius: 16px;
+}
+
+/* reset mínimo + base — opcional para as telas internas */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-d);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* utilitários de tipografia reaproveitáveis pelas telas internas */
+.t-kicker {
+  font-size: 11px; font-weight: 500; letter-spacing: .26em;
+  text-transform: uppercase; color: var(--green);
+}
+.t-title {
+  font-weight: 400; line-height: 1.14; letter-spacing: -.02em;
+  font-size: clamp(30px, 7.4vw, 42px); color: var(--ink);
+}
+.t-sub {
+  font-size: 14px; line-height: 1.6; color: var(--ink-dim);
+}

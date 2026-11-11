@@ -1,0 +1,106 @@
+# Netlify — GranShow[AP]
+#
+# Site estatico puro: nao existe build, nao existe node_modules, nao existe passo de
+# compilacao. O `publish = "."` publica a raiz do repositorio do jeito que ela esta,
+# que e exatamente como o site roda no disco e no `ver-local.js`. Nao invente build
+# aqui: um passo de build que "so copia arquivos" e uma peca a mais para quebrar.
+#
+# O deploy automatico NAO mora neste arquivo — ele vem da ligacao entre o repositorio
+# do GitHub e o site no Netlify. Ligada uma vez, todo push na `main` republica.
+
+[build]
+  publish = "."
+
+# ---------------------------------------------------------------------------
+# O QUE NAO PODE SER SERVIDO
+# ---------------------------------------------------------------------------
+# O repositorio e privado, mas o SITE e publico. Sem estas regras, o conteudo
+# interno viraria URL: `/.claude/CLAUDE.md` entregaria as instrucoes do projeto,
+# os mapas das secoes e o historico de decisoes a quem digitasse o endereco.
+# Nada disso faz parte do site — nenhum `index.html`, `js/` ou `css/` aponta pra ca.
+#
+# `force = true` e obrigatorio: sem ele a regra so vale quando o arquivo NAO existe,
+# e aqui os arquivos existem — era justamente o caso que a regra precisa cobrir.
+[[redirects]]
+  from = "/.claude/*"
+  status = 404
+  to = "/404-interno"
+  force = true
+
+[[redirects]]
+  from = "/.github/*"
+  status = 404
+  to = "/404-interno"
+  force = true
+
+[[redirects]]
+  from = "/.githooks/*"
+  status = 404
+  to = "/404-interno"
+  force = true
+
+# `.git/` publica o repositorio inteiro (historico, objects, config) se nao
+# for bloqueado — mesmo motivo dos tres acima, so que pra a arvore de
+# metadados do proprio git em vez de uma pasta do projeto.
+[[redirects]]
+  from = "/.git/*"
+  status = 404
+  to = "/404-interno"
+  force = true
+
+# ---------------------------------------------------------------------------
+# CACHE
+# ---------------------------------------------------------------------------
+# Os arquivos de `assets/` sao imutaveis na pratica: quando uma arte muda, ela e
+# SOBRESCRITA com o mesmo nome (e regra do projeto — o nome do slide e que garante a
+# ordem). Isso quer dizer que cache eterno aqui seria uma armadilha: voce reexporta
+# o Slide14, sobe, e o navegador de quem ja visitou continua mostrando o antigo.
+# Por isso 1 dia, nao 1 ano: rapido para quem navega dentro da apresentacao, e
+# curto o suficiente para uma arte trocada aparecer sem ninguem limpar cache.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+# As fontes tem nome estavel e nunca sao sobrescritas com conteudo diferente —
+# essas podem durar. `immutable` evita a revalidacao condicional.
+[[headers]]
+  for = "/assets/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# HTML sempre revalidado: e o unico jeito de um deploy aparecer na hora.
+# `must-revalidate` sem `no-store` mantem o 304 barato quando nada mudou.
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# O JS e o CSS carregam a coreografia inteira (apresentacao, galeria, reconhecimento)
+# e mudam junto com o HTML. Cache longo aqui produz a pior falha possivel: HTML novo
+# com JS velho, que nao da erro — so faz a apresentacao parar num lugar errado.
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# ---------------------------------------------------------------------------
+# CABECALHOS DE SEGURANCA
+# ---------------------------------------------------------------------------
+# Conservadores de proposito. Nada aqui muda como a pagina desenha.
+# NAO ha Content-Security-Policy: a landing tem CSS e JS inline (~6000 linhas de
+# index.html), e uma CSP honesta exigiria `unsafe-inline`, que nao protege de nada.
+# Escrever CSP falsa e pior que nao ter.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "SAMEORIGIN"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"

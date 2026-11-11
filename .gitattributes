@@ -1,0 +1,4 @@
+# O hook do git e um shell script: se o checkout o converter para CRLF, o
+# interpretador falha com "bad interpreter" e a verificacao de commit morre
+# calada. Forcar LF garante que ele funcione em qualquer clone.
+.githooks/** text eol=lf
