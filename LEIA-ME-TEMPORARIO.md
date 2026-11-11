@@ -9,3 +9,4 @@ e os links "Simulador"/"Planos" do menu e o botão "Simular minha recorrência" 
 Ajustes para o site não quebrar sem essas seções (só nesta cópia):
 - script do simulador: guarda `if(simSec && ...)` (sem ela, um erro no console);
 - `#reorder-secoes`: segue sem o #simulador (sem isso o Summit e o Expert iam para o topo).
+- espaçador `.jend` (66vh vazio) retirado: sem os Planos ele virava faixa preta entre o App e o Summit.
